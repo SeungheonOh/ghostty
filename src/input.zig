@@ -27,6 +27,7 @@ pub const MouseButton = mouse.Button;
 pub const MouseButtonState = mouse.ButtonState;
 pub const MousePressureStage = mouse.PressureStage;
 pub const OptionAsAlt = config.OptionAsAlt;
+pub const CmdAltSwap = config.CmdAltSwap;
 pub const ScrollMods = mouse.ScrollMods;
 pub const SplitFocusDirection = Binding.Action.SplitFocusDirection;
 pub const SplitResizeDirection = Binding.Action.SplitResizeDirection;

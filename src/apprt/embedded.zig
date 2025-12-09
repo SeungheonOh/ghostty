@@ -1402,7 +1402,11 @@ pub const CAPI = struct {
         app: *App,
         event: KeyEvent,
     ) bool {
-        return app.keyEvent(.app, event.keyEvent()) catch |err| {
+        var key_event = event.keyEvent();
+        // Apply cmd-alt swap if configured
+        key_event.mods = key_event.mods.cmdAltSwap(app.config.@"macos-cmd-alt-swap");
+        key_event.consumed_mods = key_event.consumed_mods.cmdAltSwap(app.config.@"macos-cmd-alt-swap");
+        return app.keyEvent(.app, key_event) catch |err| {
             log.warn("error processing key event err={}", .{err});
             return false;
         };
@@ -1416,7 +1420,11 @@ pub const CAPI = struct {
         app: *App,
         event: KeyEvent,
     ) bool {
-        const core_event = event.keyEvent().core() orelse {
+        var key_event = event.keyEvent();
+        // Apply cmd-alt swap if configured
+        key_event.mods = key_event.mods.cmdAltSwap(app.config.@"macos-cmd-alt-swap");
+        key_event.consumed_mods = key_event.consumed_mods.cmdAltSwap(app.config.@"macos-cmd-alt-swap");
+        const core_event = key_event.core() orelse {
             log.warn("error processing key event", .{});
             return false;
         };
@@ -1682,9 +1690,9 @@ pub const CAPI = struct {
     }
 
     /// Filter the mods if necessary. This handles settings such as
-    /// `macos-option-as-alt`. The filtered mods should be used for
-    /// key translation but should NOT be sent back via the `_key`
-    /// function -- the original mods should be used for that.
+    /// `macos-option-as-alt` and `macos-cmd-alt-swap`. The filtered mods
+    /// should be used for key translation but should NOT be sent back via
+    /// the `_key` function -- the original mods should be used for that.
     export fn ghostty_surface_key_translation_mods(
         surface: *Surface,
         mods_raw: c_int,
@@ -1693,7 +1701,9 @@ pub const CAPI = struct {
             input.Mods.Backing,
             @truncate(@as(c_uint, @bitCast(mods_raw))),
         ));
-        const result = mods.translation(
+        // First apply cmd-alt swap, then option-as-alt translation
+        const swapped = mods.cmdAltSwap(surface.core_surface.config.macos_cmd_alt_swap);
+        const result = swapped.translation(
             surface.core_surface.config.macos_option_as_alt orelse
                 surface.app.keyboardLayout().detectOptionAsAlt(),
         );
@@ -1724,9 +1734,13 @@ pub const CAPI = struct {
         surface: *Surface,
         event: KeyEvent,
     ) bool {
+        var key_event = event.keyEvent();
+        // Apply cmd-alt swap if configured
+        key_event.mods = key_event.mods.cmdAltSwap(surface.core_surface.config.macos_cmd_alt_swap);
+        key_event.consumed_mods = key_event.consumed_mods.cmdAltSwap(surface.core_surface.config.macos_cmd_alt_swap);
         return surface.app.keyEvent(
             .{ .surface = surface },
-            event.keyEvent(),
+            key_event,
         ) catch |err| {
             log.warn("error processing key event err={}", .{err});
             return false;
@@ -1741,7 +1755,11 @@ pub const CAPI = struct {
         surface: *Surface,
         event: KeyEvent,
     ) bool {
-        const core_event = event.keyEvent().core() orelse {
+        var key_event = event.keyEvent();
+        // Apply cmd-alt swap if configured
+        key_event.mods = key_event.mods.cmdAltSwap(surface.core_surface.config.macos_cmd_alt_swap);
+        key_event.consumed_mods = key_event.consumed_mods.cmdAltSwap(surface.core_surface.config.macos_cmd_alt_swap);
+        const core_event = key_event.core() orelse {
             log.warn("error processing key event", .{});
             return false;
         };
@@ -1781,15 +1799,16 @@ pub const CAPI = struct {
         surface: *Surface,
         action: input.MouseButtonState,
         button: input.MouseButton,
-        mods: c_int,
+        mods_raw: c_int,
     ) bool {
+        const mods: input.Mods = @bitCast(@as(
+            input.Mods.Backing,
+            @truncate(@as(c_uint, @bitCast(mods_raw))),
+        ));
         return surface.mouseButtonCallback(
             action,
             button,
-            @bitCast(@as(
-                input.Mods.Backing,
-                @truncate(@as(c_uint, @bitCast(mods))),
-            )),
+            mods.cmdAltSwap(surface.core_surface.config.macos_cmd_alt_swap),
         );
     }
 
@@ -1798,15 +1817,16 @@ pub const CAPI = struct {
         surface: *Surface,
         x: f64,
         y: f64,
-        mods: c_int,
+        mods_raw: c_int,
     ) void {
+        const mods: input.Mods = @bitCast(@as(
+            input.Mods.Backing,
+            @truncate(@as(c_uint, @bitCast(mods_raw))),
+        ));
         surface.cursorPosCallback(
             x,
             y,
-            @bitCast(@as(
-                input.Mods.Backing,
-                @truncate(@as(c_uint, @bitCast(mods))),
-            )),
+            mods.cmdAltSwap(surface.core_surface.config.macos_cmd_alt_swap),
         );
     }
 

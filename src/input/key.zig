@@ -3,6 +3,7 @@ const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const cimgui = @import("cimgui");
 const OptionAsAlt = @import("config.zig").OptionAsAlt;
+const CmdAltSwap = @import("config.zig").CmdAltSwap;
 
 /// A generic key input event. This is the information that is necessary
 /// regardless of apprt in order to generate the proper terminal
@@ -166,6 +167,21 @@ pub const Mods = packed struct(Mods.Backing) {
         return result;
     }
 
+    /// Swap CMD (super) and Option (alt) keys. This handles the
+    /// `macos-cmd-alt-swap` configuration option.
+    pub fn cmdAltSwap(self: Mods, swap: CmdAltSwap) Mods {
+        if (comptime !builtin.target.os.tag.isDarwin()) return self;
+        if (swap == .false) return self;
+
+        var result = self;
+        result.alt = self.super;
+        result.super = self.alt;
+        // Also swap the sides
+        result.sides.alt = self.sides.super;
+        result.sides.super = self.sides.alt;
+        return result;
+    }
+
     /// Checks to see if super is on (MacOS) or ctrl.
     pub fn ctrlOrSuper(self: Mods) bool {
         if (comptime builtin.target.os.tag.isDarwin()) {
@@ -227,6 +243,54 @@ pub const Mods = packed struct(Mods.Backing) {
             const mods: Mods = .{ .alt = true, .shift = true };
             const result = mods.translation(.true);
             try testing.expectEqual(Mods{ .shift = true }, result);
+        }
+    }
+
+    test "macos-cmd-alt-swap" {
+        if (comptime !builtin.target.os.tag.isDarwin()) return error.SkipZigTest;
+
+        const testing = std.testing;
+
+        // Disabled - no change
+        {
+            const mods: Mods = .{ .alt = true };
+            const result = mods.cmdAltSwap(.false);
+            try testing.expectEqual(mods, result);
+        }
+
+        // Alt becomes super
+        {
+            const mods: Mods = .{ .alt = true };
+            const result = mods.cmdAltSwap(.true);
+            try testing.expectEqual(Mods{ .super = true }, result);
+        }
+
+        // Super becomes alt
+        {
+            const mods: Mods = .{ .super = true };
+            const result = mods.cmdAltSwap(.true);
+            try testing.expectEqual(Mods{ .alt = true }, result);
+        }
+
+        // Both swap
+        {
+            const mods: Mods = .{ .alt = true, .super = true };
+            const result = mods.cmdAltSwap(.true);
+            try testing.expectEqual(Mods{ .alt = true, .super = true }, result);
+        }
+
+        // Sides also swap
+        {
+            const mods: Mods = .{ .alt = true, .sides = .{ .alt = .right } };
+            const result = mods.cmdAltSwap(.true);
+            try testing.expectEqual(Mods{ .super = true, .sides = .{ .super = .right } }, result);
+        }
+
+        // Other mods preserved
+        {
+            const mods: Mods = .{ .alt = true, .shift = true, .ctrl = true };
+            const result = mods.cmdAltSwap(.true);
+            try testing.expectEqual(Mods{ .super = true, .shift = true, .ctrl = true }, result);
         }
     }
 };

@@ -2953,6 +2953,21 @@ keybind: Keybinds = .{},
 /// key, respectively.
 @"macos-option-as-alt": ?inputpkg.OptionAsAlt = null,
 
+/// Whether to swap the Command and Option keys on macOS. When enabled,
+/// the Command key will behave as Option/Alt, and the Option key will
+/// behave as Command.
+///
+/// This is useful for users who are accustomed to keyboards where the
+/// Alt key is in the position of the Command key (e.g., Windows/Linux
+/// keyboard layouts), or users who prefer Alt-based terminal shortcuts
+/// to be accessible via the Command key position.
+///
+/// When combined with `macos-option-as-alt`, the swap happens first,
+/// then the option-as-alt translation is applied. This means if you
+/// enable both options, Command will become Alt (for terminal sequences)
+/// and Option will become Command (super).
+@"macos-cmd-alt-swap": inputpkg.CmdAltSwap = .false,
+
 /// Whether to enable the macOS window shadow. The default value is true.
 /// With some window managers and window transparency settings, you may
 /// find false more visually appealing.
